@@ -1,13 +1,12 @@
 import { io } from 'socket.io-client';
 
 // Create socket connection to server
-// In development, use localhost. In production, use the Vercel deployment URL
+// In development, use localhost. In production, use the external WebSocket server URL
 const SOCKET_URL = import.meta.env.PROD 
-  ? window.location.origin 
+  ? 'https://massclick.onrender.com' // Replace with your actual WebSocket server URL
   : 'http://localhost:3001';
 
 export const socket = io(SOCKET_URL, {
-  path: import.meta.env.PROD ? '/api/socket' : undefined,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
   autoConnect: true,
