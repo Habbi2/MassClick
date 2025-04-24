@@ -170,7 +170,7 @@ function Particles({ count, color, parentRef, stage, pulseEffect = 0 }) {
   return (
     <>
       {particles.current.map((particle, i) => (
-        <mesh key={i} position={particle.position} scale={particle.scale * (1 + pulseEffect * 0.3)}>
+        <mesh key={i} position={particle.position} scale={particle.scale * (1 + pulseEffect * 0.3)} aria-label={`Particle effects for ${evolutionData.description}`}>
           <sphereGeometry args={[0.1, 8, 8]} />
           <meshPhongMaterial 
             color={color} 
@@ -224,7 +224,7 @@ function AmbientTendrils({ color, parentRef, activityLevel }) {
   return (
     <group position={[0, 0, 0]}>
       {tendrilsRef.current.map((tendril, i) => (
-        <line key={i}>
+        <line key={i} aria-hidden="true">
           <bufferGeometry attach="geometry">
             <float32BufferAttribute 
               attach="attributes-position" 
@@ -485,6 +485,9 @@ const ClickableObject = () => {
       <mesh
         position={[0, 0, 0]}
         scale={[1.55, 1.55, 1.55]}
+        aria-label={`${evolutionData.description} object`}
+        role="button"
+        tabIndex={0}
       >
         <sphereGeometry args={[1, 16, 16]} />
         <meshPhongMaterial 
@@ -501,6 +504,7 @@ const ClickableObject = () => {
         color={evolutionData.color} 
         parentRef={objectRef} 
         activityLevel={recentActivityLevel}
+        aria-hidden="true"
       />
       
       {/* Evolution stage particles with enhanced realism */}
@@ -510,6 +514,7 @@ const ClickableObject = () => {
         parentRef={objectRef}
         stage={currentStage}
         pulseEffect={pulseEffect}
+        aria-label={`Particle effects for ${evolutionData.description}`}
       />
       
       {/* Evolution stage info tooltip - now shows total and local clicks */}

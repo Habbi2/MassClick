@@ -2,11 +2,66 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
+    
+    <!-- Progressive Web App support -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0a0a1e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/logo192.png" />
+    
+    <!-- Primary Meta Tags -->
+    <title>3D Multiplayer Clicker Game - Interactive Cosmic Evolution Game</title>
+    <meta name="title" content="3D Multiplayer Clicker Game - Interactive Cosmic Evolution Game">
+    <meta name="description" content="Play our addictive 3D multiplayer clicker game with real-time collaboration. Evolve cosmic spirals through collective clicking and unlock beautiful visual rewards.">
+    <meta name="keywords" content="3D game, clicker game, multiplayer game, cosmic evolution, interactive game, WebGL game, React game, Three.js game">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://your-game-url.com/">
+    <meta property="og:title" content="3D Multiplayer Clicker Game - Interactive Cosmic Evolution">
+    <meta property="og:description" content="Join players worldwide in this addictive 3D clicker game. Click to evolve cosmic spirals and unlock beautiful visual rewards in real-time.">
+    <meta property="og:image" content="/game-preview.png">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://your-game-url.com/">
+    <meta property="twitter:title" content="3D Multiplayer Clicker Game - Interactive Cosmic Evolution">
+    <meta property="twitter:description" content="Join players worldwide in this addictive 3D clicker game. Click to evolve cosmic spirals and unlock beautiful visual rewards in real-time.">
+    <meta property="twitter:image" content="/game-preview.png">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://mass-click.vercel.app/">
+    
+    <!-- Structured Data - JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "3D Multiplayer Clicker Game",
+      "description": "A web-based multiplayer clicker game with a 3D interface. Players click to evolve cosmic spirals and unlock visual rewards.",
+      "genre": ["Clicker", "Casual", "Multiplayer"],
+      "gamePlatform": "Web Browser",
+      "image": "/game-preview.png",
+      "url": "https://mass-click.vercel.app/",
+      "applicationCategory": "Game",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
+      }
+    }
+    </script>
+
+    <!-- Preload critical assets -->
+    <link rel="preload" href="/src/main.jsx" as="script">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   </head>
   <body>
+    <noscript>You need to enable JavaScript to run this game.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
