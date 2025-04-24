@@ -339,7 +339,7 @@ const ClickableObject = () => {
     if (geometryRef.current) {
       geometryRef.current.dispose();
     }
-    geometryRef.current = createSimpleGeometry(
+    geometryRef = createSimpleGeometry(
       evolutionData.complexity,
       evolutionData.arms
     );
@@ -485,7 +485,7 @@ const ClickableObject = () => {
         />
       </animated.mesh>
       
-      {/* Add a second, more basic mesh to ensure visibility */}
+      {/* Add a second, more basic mesh with guaranteed visibility */}
       <mesh
         position={[0, 0, 0]}
         scale={[1.55, 1.55, 1.55]}
@@ -494,7 +494,7 @@ const ClickableObject = () => {
         <meshBasicMaterial 
           color={evolutionData.color} 
           transparent={true}
-          opacity={0.2}
+          opacity={0.5}
         />
       </mesh>
       
