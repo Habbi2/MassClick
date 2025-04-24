@@ -17,6 +17,268 @@ import ClickableObject from './ClickableObject';
 import { setupSocketListeners, socket, connectSocket } from '../services/socketService';
 import useGameStore from '../services/gameStore';
 
+// New Camera Controller component for enhanced camera behavior
+function CameraController({ totalClicks, screenEffects }) {
+  const { camera, gl } = useThree();
+  const controlsRef = useRef();
+  const [cameraPreset, setCameraPreset] = useState('default');
+  const lastShakeTime = useRef(0);
+  const initialPos = useRef([0, 0, 8]);
+  const targetPos = useRef([0, 0, 8]);
+  const transitionSpeed = useRef(0.05);
+  
+  // Camera presets that users can switch between
+  const cameraPresets = {
+    default: { position: [0, 0, 8], fov: 60, minDistance: 3, maxDistance: 20 },
+    close: { position: [0, 0, 5], fov: 50, minDistance: 2, maxDistance: 10 },
+    wide: { position: [3, 2, 12], fov: 75, minDistance: 5, maxDistance: 25 },
+    overhead: { position: [0, 5, 5], fov: 60, minDistance: 3, maxDistance: 20 },
+    artistic: { position: [4, -2, 6], fov: 45, minDistance: 3, maxDistance: 15 },
+  };
+  
+  // Listen for keyboard shortcuts to change camera presets
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Number keys 1-5 for camera presets
+      if (e.key >= '1' && e.key <= '5') {
+        const presetKeys = Object.keys(cameraPresets);
+        const index = parseInt(e.key) - 1;
+        if (index < presetKeys.length) {
+          switchCameraPreset(presetKeys[index]);
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+  
+  // Set up adaptive camera behaviors based on gameplay state
+  useEffect(() => {
+    if (totalClicks > 0) {
+      // For more experienced players with higher clicks, gradually unlock more dynamic camera
+      const dynamicFactor = Math.min(1, totalClicks / 1000);
+      
+      if (controlsRef.current) {
+        // Make rotation smoother with higher clicks
+        controlsRef.current.rotateSpeed = 0.5 + dynamicFactor * 0.5;
+        
+        // Increase damping for smoother movement as player progresses
+        controlsRef.current.enableDamping = true;
+        controlsRef.current.dampingFactor = 0.05 + dynamicFactor * 0.1;
+      }
+      
+      // Adjust transition speed based on player progression
+      transitionSpeed.current = 0.05 + dynamicFactor * 0.03;
+    }
+  }, [totalClicks]);
+  
+  // Function to switch between camera presets with smooth transitions
+  const switchCameraPreset = useCallback((presetName) => {
+    if (cameraPresets[presetName]) {
+      const preset = cameraPresets[presetName];
+      setCameraPreset(presetName);
+      
+      // Store current position as initial position for transition
+      initialPos.current = [camera.position.x, camera.position.y, camera.position.z];
+      targetPos.current = preset.position;
+      
+      // Update camera FOV
+      camera.fov = preset.fov;
+      camera.updateProjectionMatrix();
+      
+      // Update orbit controls constraints
+      if (controlsRef.current) {
+        controlsRef.current.minDistance = preset.minDistance;
+        controlsRef.current.maxDistance = preset.maxDistance;
+      }
+      
+      // Show visual feedback about camera change
+      const infoElement = document.createElement('div');
+      infoElement.textContent = `Camera: ${presetName}`;
+      infoElement.style.position = 'absolute';
+      infoElement.style.bottom = '10px';
+      infoElement.style.left = '10px';
+      infoElement.style.background = 'rgba(0,0,0,0.5)';
+      infoElement.style.color = 'white';
+      infoElement.style.padding = '5px 10px';
+      infoElement.style.borderRadius = '4px';
+      infoElement.style.fontFamily = 'Arial, sans-serif';
+      infoElement.style.fontSize = '14px';
+      infoElement.style.opacity = '0';
+      infoElement.style.transition = 'opacity 0.3s ease';
+      
+      gl.domElement.parentElement.appendChild(infoElement);
+      
+      // Fade in
+      setTimeout(() => { infoElement.style.opacity = '1'; }, 10);
+      
+      // Remove after delay
+      setTimeout(() => {
+        infoElement.style.opacity = '0';
+        setTimeout(() => {
+          if (infoElement.parentNode) {
+            infoElement.parentNode.removeChild(infoElement);
+          }
+        }, 300);
+      }, 2000);
+    }
+  }, [camera, gl.domElement]);
+  
+  // Add shake effect to camera
+  const shakeCamera = useCallback((intensity = 1.0, duration = 300) => {
+    const now = Date.now();
+    lastShakeTime.current = now;
+    
+    // Don't add multiple shakes in a short timeframe
+    if (now - lastShakeTime.current < duration) {
+      return;
+    }
+    
+    const initialCameraPosition = [camera.position.x, camera.position.y, camera.position.z];
+    
+    // Define the shake animation
+    let startTime = Date.now();
+    const animateShake = () => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < duration) {
+        // Create a random offset based on intensity that decreases over time
+        const remaining = 1 - (elapsed / duration);
+        const shakeIntensity = intensity * remaining;
+        
+        camera.position.x = initialCameraPosition[0] + (Math.random() - 0.5) * shakeIntensity;
+        camera.position.y = initialCameraPosition[1] + (Math.random() - 0.5) * shakeIntensity;
+        camera.position.z = initialCameraPosition[2] + (Math.random() - 0.5) * shakeIntensity;
+        
+        requestAnimationFrame(animateShake);
+      } else {
+        // Restore original position
+        camera.position.set(...initialCameraPosition);
+      }
+    };
+    
+    animateShake();
+  }, [camera]);
+  
+  // Apply camera effects based on game state
+  useEffect(() => {
+    if (screenEffects?.shake) {
+      shakeCamera(0.2);
+    }
+  }, [screenEffects, shakeCamera]);
+  
+  // Main camera animation loop - smooth transitions between positions
+  useFrame((state, delta) => {
+    // Smooth transitions between camera positions
+    if (targetPos.current && initialPos.current) {
+      const lerpFactor = transitionSpeed.current;
+      
+      camera.position.x += (targetPos.current[0] - camera.position.x) * lerpFactor;
+      camera.position.y += (targetPos.current[1] - camera.position.y) * lerpFactor;
+      camera.position.z += (targetPos.current[2] - camera.position.z) * lerpFactor;
+    }
+    
+    // Dynamic subtle camera movement when fully evolved (high click count)
+    if (totalClicks > 500 && controlsRef.current) {
+      const t = state.clock.getElapsedTime();
+      
+      // Add gentle, organic floating movement
+      const floatX = Math.sin(t * 0.2) * 0.3;
+      const floatY = Math.cos(t * 0.1) * 0.2;
+      
+      camera.position.x += (floatX - camera.position.x) * 0.01;
+      camera.position.y += (floatY - camera.position.y) * 0.01;
+      
+      // Update controls target for better orbital behavior
+      if (controlsRef.current.target) {
+        const targetX = Math.sin(t * 0.05) * 0.5;
+        const targetY = Math.sin(t * 0.03) * 0.3;
+        
+        controlsRef.current.target.x = targetX;
+        controlsRef.current.target.y = targetY;
+      }
+    }
+  });
+  
+  // Create UI for camera presets
+  useEffect(() => {
+    const cameraUi = document.createElement('div');
+    cameraUi.className = 'camera-controls';
+    cameraUi.style.position = 'absolute';
+    cameraUi.style.top = '10px';
+    cameraUi.style.left = '10px';
+    cameraUi.style.display = 'flex';
+    cameraUi.style.gap = '4px';
+    cameraUi.style.zIndex = '100';
+    
+    Object.keys(cameraPresets).forEach((preset, index) => {
+      const button = document.createElement('button');
+      button.textContent = `C${index + 1}`;
+      button.title = `Camera ${preset}`;
+      button.style.background = preset === cameraPreset ? 'rgba(107, 136, 255, 0.8)' : 'rgba(0, 0, 0, 0.5)';
+      button.style.color = 'white';
+      button.style.border = 'none';
+      button.style.borderRadius = '4px';
+      button.style.padding = '4px 6px';
+      button.style.fontSize = '10px';
+      button.style.cursor = 'pointer';
+      button.style.opacity = '0.7';
+      button.style.transition = 'all 0.2s ease';
+      button.style.minWidth = '24px';
+      button.style.height = '24px';
+      button.style.display = 'flex';
+      button.style.alignItems = 'center';
+      button.style.justifyContent = 'center';
+      
+      button.addEventListener('mouseenter', () => {
+        button.style.opacity = '1';
+        button.style.transform = 'scale(1.1)';
+      });
+      
+      button.addEventListener('mouseleave', () => {
+        button.style.opacity = '0.7';
+        button.style.transform = 'scale(1)';
+      });
+      
+      button.addEventListener('click', () => {
+        // Update all button styles
+        document.querySelectorAll('.camera-controls button').forEach(btn => {
+          btn.style.background = 'rgba(0, 0, 0, 0.5)';
+        });
+        button.style.background = 'rgba(107, 136, 255, 0.8)';
+        
+        // Switch camera preset
+        switchCameraPreset(preset);
+      });
+      
+      cameraUi.appendChild(button);
+    });
+    
+    gl.domElement.parentElement.appendChild(cameraUi);
+    
+    return () => {
+      if (cameraUi.parentNode) {
+        cameraUi.parentNode.removeChild(cameraUi);
+      }
+    };
+  }, [gl.domElement, switchCameraPreset, cameraPreset]);
+  
+  return (
+    <OrbitControls 
+      ref={controlsRef}
+      enableZoom={true} 
+      enablePan={false}
+      enableRotate={true}
+      minDistance={cameraPresets[cameraPreset].minDistance} 
+      maxDistance={cameraPresets[cameraPreset].maxDistance}
+      rotateSpeed={0.5}
+      zoomSpeed={0.8}
+      autoRotate={totalClicks > 400} 
+      autoRotateSpeed={0.5 + Math.min(1.5, totalClicks / 2000)}
+    />
+  );
+}
+
 // Error Boundary to catch and handle Three.js rendering errors
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -196,7 +458,8 @@ export default function GameScene() {
     updateGameState, 
     setPlayerCount, 
     setConnected,
-    totalClicks
+    totalClicks,
+    screenEffects
   } = useGameStore();
   
   const [cameraPosition, setCameraPosition] = useState([0, 0, 8]);
@@ -480,17 +743,7 @@ export default function GameScene() {
           <CosmicDust count={Math.min(1000, 500 + totalClicks / 10)} totalClicks={totalClicks} />
           <OrbitalRings totalClicks={totalClicks} />
           <ClickableObject />
-          <OrbitControls 
-            enableZoom={true} 
-            enablePan={false}
-            enableRotate={true}
-            minDistance={3} 
-            maxDistance={Math.min(20, 10 + totalClicks / 1000)}
-            rotateSpeed={0.5}
-            zoomSpeed={0.8}
-            autoRotate={totalClicks > 400} 
-            autoRotateSpeed={0.5 + Math.min(1.5, totalClicks / 2000)}
-          />
+          <CameraController totalClicks={totalClicks} screenEffects={screenEffects} />
         </Suspense>
       </Canvas>
     </ErrorBoundary>
