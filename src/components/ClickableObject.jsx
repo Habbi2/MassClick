@@ -239,16 +239,16 @@ function AmbientTendrils({ color, parentRef, activityLevel }) {
           <bufferGeometry>
             <bufferAttribute 
               attach="attributes-position" 
-              count={tendril.points.length} 
+              count={10}
               array={bufferRef.current[i]}
               itemSize={3}
+              usage={THREE.DynamicDrawUsage}
             />
           </bufferGeometry>
           <lineBasicMaterial 
             color={color} 
-            linewidth={tendril.width * (1 + activityLevel * 0.5)}
             opacity={0.6 + activityLevel * 0.4}
-            transparent
+            transparent={true}
           />
         </line>
       ))}
