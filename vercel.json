@@ -1,11 +1,12 @@
 {
   "version": 2,
   "builds": [
-    { "src": "dist/**", "use": "@vercel/static" },
+    { "src": "package.json", "use": "@vercel/static-build" },
     { "src": "server/server.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/socket.io/(.*)", "dest": "server/server.js" },
-    { "src": "/(.*)", "dest": "/dist/$1" }
+    { "src": "/socket.io/(.*)", "dest": "/server/server.js" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

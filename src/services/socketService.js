@@ -7,9 +7,11 @@ const SOCKET_URL = import.meta.env.PROD
   : 'http://localhost:3001';
 
 export const socket = io(SOCKET_URL, {
+  path: import.meta.env.PROD ? '/server/server.js/socket.io/' : undefined,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
-  autoConnect: true
+  autoConnect: true,
+  transports: ['websocket', 'polling']
 });
 
 // Socket event listeners
