@@ -487,7 +487,7 @@ const ClickableObject = () => {
         scale={[1.55, 1.55, 1.55]}
       >
         <sphereGeometry args={[1, 16, 16]} />
-        <meshBasicMaterial 
+        <meshPhongMaterial 
           color={evolutionData.color} 
           transparent={true}
           opacity={0.5}
