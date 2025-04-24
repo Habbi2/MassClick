@@ -4,19 +4,19 @@
   "description": "Collaborate with players worldwide in this addictive 3D clicker game. Evolve cosmic spirals through collective clicking and unlock visual rewards.",
   "icons": [
     {
-      "src": "https://mass-click.vercel.app/favicon.ico",
+      "src": "/favicon.ico",
       "sizes": "64x64",
       "type": "image/x-icon"
     },
     {
-      "src": "https://mass-click.vercel.app/logo192.png",
+      "src": "/game-preview.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "1280x720"
     },
     {
-      "src": "https://mass-click.vercel.app/logo512.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "src": "/vite.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
     }
   ],
   "start_url": ".",
