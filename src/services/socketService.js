@@ -1,23 +1,34 @@
 import { io } from 'socket.io-client';
 
 // Create socket connection to server
-// In development, use localhost. In production, use the external WebSocket server URL
-const SOCKET_URL = import.meta.env.PROD 
-  ? 'wss://massclick.onrender.com' // Using secure WebSocket protocol
-  : 'http://localhost:3001';
+// Define multiple server URLs to try in case the primary one fails
+const SOCKET_URLS = {
+  primary: import.meta.env.PROD 
+    ? 'wss://massclick.onrender.com' // Primary production WebSocket server
+    : 'http://localhost:3001',
+  backup: import.meta.env.PROD
+    ? 'wss://mass-click-server.herokuapp.com' // Backup production server
+    : 'http://localhost:3001',
+  fallback: import.meta.env.PROD
+    ? 'https://massclick.onrender.com' // HTTP fallback if WSS fails
+    : 'http://localhost:3001'
+};
+
+// Start with the primary URL
+let currentSocketUrl = SOCKET_URLS.primary;
 
 // Create socket instance but don't connect immediately
-export const socket = io(SOCKET_URL, {
-  reconnectionAttempts: 10, // Increased retry attempts
+export const socket = io(currentSocketUrl, {
+  reconnectionAttempts: 10,
   reconnectionDelay: 1000,
-  timeout: 20000, // Increased timeout
+  timeout: 20000,
   autoConnect: false, // Don't connect automatically
   transports: ['websocket', 'polling'] // Try websocket first, fallback to polling
 });
 
 // Function to manually connect and handle connection issues
 export const connectSocket = () => {
-  console.log(`Attempting to connect to ${SOCKET_URL}...`);
+  console.log(`Attempting to connect to ${currentSocketUrl}...`);
   
   // Try to connect
   socket.connect();
@@ -30,6 +41,30 @@ export const connectSocket = () => {
         // If websocket fails, try with polling only
         socket.io.opts.transports = ['polling'];
         socket.connect();
+        
+        // Set another timeout for the polling attempt
+        setTimeout(() => {
+          if (!socket.connected) {
+            // Try the backup URL if available
+            if (currentSocketUrl === SOCKET_URLS.primary) {
+              console.warn('Primary server connection failed, trying backup server...');
+              socket.disconnect();
+              currentSocketUrl = SOCKET_URLS.backup;
+              socket.io.uri = currentSocketUrl;
+              socket.io.opts.transports = ['websocket', 'polling'];
+              socket.connect();
+            } 
+            // Try HTTP fallback if WSS failed
+            else if (currentSocketUrl === SOCKET_URLS.backup) {
+              console.warn('Backup server connection failed, trying HTTP fallback...');
+              socket.disconnect();
+              currentSocketUrl = SOCKET_URLS.fallback;
+              socket.io.uri = currentSocketUrl;
+              socket.io.opts.transports = ['polling']; // Force polling for HTTP
+              socket.connect();
+            }
+          }
+        }, 5000);
       }
     }, 5000);
     
@@ -41,7 +76,7 @@ export const connectSocket = () => {
     
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
-      // We don't reject here to allow reconnection attempts
+      // Don't reject immediately to allow fallback attempts
     });
   });
 };
