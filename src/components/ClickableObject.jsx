@@ -124,7 +124,7 @@ function createSimpleGeometry(complexity = 3, arms = 3) {
 }
 
 // Enhanced particle effect component with flowing motion and response to group activity
-function Particles({ count, color, parentRef, stage, pulseEffect = 0 }) {
+function Particles({ count, color, parentRef, stage, pulseEffect = 0, description = "Cosmic Particle" }) {
   const particles = useRef([]);
   
   useEffect(() => {
@@ -170,7 +170,7 @@ function Particles({ count, color, parentRef, stage, pulseEffect = 0 }) {
   return (
     <>
       {particles.current.map((particle, i) => (
-        <mesh key={i} position={particle.position} scale={particle.scale * (1 + pulseEffect * 0.3)} aria-label={`Particle effects for ${evolutionData.description}`}>
+        <mesh key={i} position={particle.position} scale={particle.scale * (1 + pulseEffect * 0.3)} aria-label={`Particle effects for ${description}`}>
           <sphereGeometry args={[0.1, 8, 8]} />
           <meshPhongMaterial 
             color={color} 
@@ -188,6 +188,7 @@ function Particles({ count, color, parentRef, stage, pulseEffect = 0 }) {
 // New component for subtle ambient tendrils that react to clicks
 function AmbientTendrils({ color, parentRef, activityLevel }) {
   const tendrilsRef = useRef([]);
+  const bufferRef = useRef([]);
   const tendrilCount = 6;
   
   useEffect(() => {
@@ -198,6 +199,9 @@ function AmbientTendrils({ color, parentRef, activityLevel }) {
       length: Math.random() * 0.8 + 0.5,
       offset: Math.random() * Math.PI * 2
     }));
+    
+    // Pre-create buffer arrays for each tendril
+    bufferRef.current = tendrilsRef.current.map(() => new Float32Array(30)); // 10 points * 3 coordinates
   }, []);
   
   useFrame((state, delta) => {
@@ -207,6 +211,7 @@ function AmbientTendrils({ color, parentRef, activityLevel }) {
     tendrilsRef.current.forEach((tendril, i) => {
       const angle = time * tendril.speed + tendril.offset;
       const baseLength = tendril.length * (1 + activityLevel * 0.3);
+      const buffer = bufferRef.current[i];
       
       for (let j = 0; j < tendril.points.length; j++) {
         const t = j / (tendril.points.length - 1);
@@ -217,6 +222,12 @@ function AmbientTendrils({ color, parentRef, activityLevel }) {
         tendril.points[j].x = Math.sin(segmentAngle + t * 3) * radius * (0.5 + t);
         tendril.points[j].y = Math.cos(segmentAngle + t * 3) * radius * (0.5 + t);
         tendril.points[j].z = Math.sin(segmentAngle * 2) * 0.2 * t;
+        
+        // Update buffer directly
+        const idx = j * 3;
+        buffer[idx] = tendril.points[j].x;
+        buffer[idx + 1] = tendril.points[j].y;
+        buffer[idx + 2] = tendril.points[j].z;
       }
     });
   });
@@ -224,21 +235,20 @@ function AmbientTendrils({ color, parentRef, activityLevel }) {
   return (
     <group position={[0, 0, 0]}>
       {tendrilsRef.current.map((tendril, i) => (
-        <line key={i} aria-hidden="true">
-          <bufferGeometry attach="geometry">
-            <float32BufferAttribute 
+        <line key={i}>
+          <bufferGeometry>
+            <bufferAttribute 
               attach="attributes-position" 
               count={tendril.points.length} 
-              array={new Float32Array(tendril.points.flatMap(p => [p.x, p.y, p.z]))}
+              array={bufferRef.current[i]}
               itemSize={3}
             />
           </bufferGeometry>
           <lineBasicMaterial 
-            attach="material" 
             color={color} 
             linewidth={tendril.width * (1 + activityLevel * 0.5)}
             opacity={0.6 + activityLevel * 0.4}
-            transparent={true}
+            transparent
           />
         </line>
       ))}
@@ -514,7 +524,7 @@ const ClickableObject = () => {
         parentRef={objectRef}
         stage={currentStage}
         pulseEffect={pulseEffect}
-        aria-label={`Particle effects for ${evolutionData.description}`}
+        description={evolutionData.description}
       />
       
       {/* Evolution stage info tooltip - now shows total and local clicks */}
