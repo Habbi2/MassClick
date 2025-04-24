@@ -170,7 +170,7 @@ function Particles({ count, color, parentRef, stage, pulseEffect = 0, descriptio
   return (
     <>
       {particles.current.map((particle, i) => (
-        <mesh key={i} position={particle.position} scale={particle.scale * (1 + pulseEffect * 0.3)} aria-label={`Particle effects for ${description}`}>
+        <mesh key={i} position={particle.position} scale={particle.scale * (1 + pulseEffect * 0.3)}>
           <sphereGeometry args={[0.1, 8, 8]} />
           <meshPhongMaterial 
             color={color} 
@@ -495,7 +495,6 @@ const ClickableObject = () => {
       <mesh
         position={[0, 0, 0]}
         scale={[1.55, 1.55, 1.55]}
-        aria-label={`${evolutionData.description} object`}
         role="button"
         tabIndex={0}
       >
@@ -514,7 +513,6 @@ const ClickableObject = () => {
         color={evolutionData.color} 
         parentRef={objectRef} 
         activityLevel={recentActivityLevel}
-        aria-hidden="true"
       />
       
       {/* Evolution stage particles with enhanced realism */}
