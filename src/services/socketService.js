@@ -7,7 +7,7 @@ const SOCKET_URL = import.meta.env.PROD
   : 'http://localhost:3001';
 
 export const socket = io(SOCKET_URL, {
-  path: import.meta.env.PROD ? '/server/server.js/socket.io/' : undefined,
+  path: import.meta.env.PROD ? '/api/socket' : undefined,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
   autoConnect: true,
