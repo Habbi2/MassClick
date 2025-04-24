@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Suspense, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useState, Suspense, useMemo, useRef, useCallback, Component } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { 
   OrbitControls, 
@@ -16,6 +16,36 @@ import * as THREE from 'three';
 import ClickableObject from './ClickableObject';
 import { setupSocketListeners, socket, connectSocket } from '../services/socketService';
 import useGameStore from '../services/gameStore';
+
+// Error Boundary to catch and handle Three.js rendering errors
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+  
+  componentDidCatch(error, errorInfo) {
+    console.log("Three.js error caught:", error);
+    console.log("Error details:", errorInfo);
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="webgl-error">
+          <h2>Rendering error occurred</h2>
+          <p>We're having trouble displaying the 3D scene. Please refresh the page or try a different browser.</p>
+        </div>
+      );
+    }
+    
+    return this.props.children;
+  }
+}
 
 // Background visual component with adaptive colors and patterns
 function Background() {
@@ -176,6 +206,7 @@ export default function GameScene() {
   const frameRef = useRef(null);
   const [contextLost, setContextLost] = useState(false);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
+  const [renderFallback, setRenderFallback] = useState(false);
 
   // Add WebGL context event listeners
   const handleContextEvents = useCallback(() => {
@@ -192,12 +223,18 @@ export default function GameScene() {
           cancelAnimationFrame(frameRef.current);
           frameRef.current = null;
         }
+        
+        // Set a timer to attempt recovery
+        setTimeout(() => {
+          setRenderFallback(true);
+        }, 2000);
       });
 
       // Handle WebGL context restoration
       canvas.addEventListener('webglcontextrestored', () => {
         console.log('WebGL context restored');
         setContextLost(false);
+        setRenderFallback(false);
       });
     }
   }, []);
@@ -275,25 +312,33 @@ export default function GameScene() {
   useEffect(() => {
     let animationId;
     const updateCameraPosition = () => {
-      if (totalClicks > 250) {
-        const cameraMovementFactor = Math.min(3, 1.5 + (totalClicks / 10000));
-        setCameraPosition([
-          Math.sin(Date.now() * 0.0001) * cameraMovementFactor, 
-          Math.cos(Date.now() * 0.0001) * cameraMovementFactor, 
-          5 + Math.sin(Date.now() * 0.00005) * 0.5
-        ]);
-        
-        setFovValue(70 + Math.sin(Date.now() * 0.0002) * 5);
-        
-        setSunPosition([
-          Math.sin(Date.now() * 0.00008) * 10,
-          Math.abs(Math.sin(Date.now() * 0.00005) * 5) + 1,
-          Math.cos(Date.now() * 0.00008) * 10
-        ]);
-      }
-      // Only schedule next frame if not context lost
-      if (!contextLost) {
-        frameRef.current = requestAnimationFrame(updateCameraPosition);
+      try {
+        if (totalClicks > 250) {
+          const cameraMovementFactor = Math.min(3, 1.5 + (totalClicks / 10000));
+          setCameraPosition([
+            Math.sin(Date.now() * 0.0001) * cameraMovementFactor, 
+            Math.cos(Date.now() * 0.0001) * cameraMovementFactor, 
+            5 + Math.sin(Date.now() * 0.00005) * 0.5
+          ]);
+          
+          setFovValue(70 + Math.sin(Date.now() * 0.0002) * 5);
+          
+          setSunPosition([
+            Math.sin(Date.now() * 0.00008) * 10,
+            Math.abs(Math.sin(Date.now() * 0.00005) * 5) + 1,
+            Math.cos(Date.now() * 0.00008) * 10
+          ]);
+        }
+        // Only schedule next frame if not context lost
+        if (!contextLost) {
+          frameRef.current = requestAnimationFrame(updateCameraPosition);
+        }
+      } catch (error) {
+        console.error("Error in animation frame:", error);
+        // Stop animation on error
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+        setRenderFallback(true);
       }
     };
     
@@ -304,6 +349,7 @@ export default function GameScene() {
     return () => {
       if (frameRef.current !== null) {
         cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
       }
     };
   }, [totalClicks, contextLost]);
@@ -316,109 +362,137 @@ export default function GameScene() {
     return "warehouse";
   };
 
+  // If WebGL context is completely lost and recovery failed, show a fallback
+  if (renderFallback) {
+    return (
+      <div className="webgl-fallback">
+        <h2>3D Rendering Unavailable</h2>
+        <p>Your browser is unable to render the 3D scene. Please try refreshing or using a different browser.</p>
+      </div>
+    );
+  }
+
   return (
-    <Canvas 
-      shadows 
-      dpr={[1, 1.5]} // Lower pixel ratio to improve performance
-      gl={{ 
-        powerPreference: "high-performance",
-        antialias: false, // Disable antialiasing for performance
-        stencil: false,
-        depth: true
-      }}
-      style={{ width: '100%', height: '100%' }}
-      onCreated={({ gl }) => {
-        gl.setClearColor(new THREE.Color('#010124'));
-        // Access the actual WebGL context properly
-        const context = gl.getContext();
-        if (context) {
-          // Now try to enable extensions for better memory management
-          try {
-            context.getExtension('WEBGL_lose_context');
-            context.getExtension('WEBGL_debug_renderer_info');
-          } catch (e) {
-            console.log('WebGL extension not supported:', e);
+    <ErrorBoundary>
+      <Canvas 
+        shadows 
+        dpr={[1, 1.5]} // Lower pixel ratio to improve performance
+        gl={{ 
+          powerPreference: "high-performance",
+          antialias: false, // Disable antialiasing for performance
+          stencil: false,
+          depth: true,
+          failIfMajorPerformanceCaveat: false, // Don't fail on low-performance devices
+          preserveDrawingBuffer: true // Help with context restoration
+        }}
+        style={{ width: '100%', height: '100%' }}
+        onCreated={({ gl }) => {
+          gl.setClearColor(new THREE.Color('#010124'));
+          // Access the actual WebGL context properly
+          const context = gl.getContext();
+          if (context) {
+            // Now try to enable extensions for better memory management
+            try {
+              context.getExtension('WEBGL_lose_context');
+              context.getExtension('WEBGL_debug_renderer_info');
+              
+              // Add better error handling for extensions
+              window.addEventListener('error', (e) => {
+                if (e.error && (
+                  e.error.toString().includes('THREE') || 
+                  e.error.toString().includes('WebGL')
+                )) {
+                  console.error('Caught WebGL/Three.js error:', e.error);
+                  setRenderFallback(true);
+                  return true; // Prevent default browser error handling
+                }
+                return false;
+              });
+              
+            } catch (e) {
+              console.log('WebGL extension not supported:', e);
+            }
           }
-        }
-      }}
-    >
-      <Suspense fallback={null}>
-        <PerformanceMonitor />
-        {/* Dynamic camera */}
-        <PerspectiveCamera makeDefault position={cameraPosition} fov={fovValue} />
-        <Background />
-        {/* Advanced lighting setup */}
-        <ambientLight intensity={0.8} />
-        <directionalLight 
-          ref={lightRef}
-          position={sunPosition} 
-          intensity={1.5} 
-          castShadow 
-          shadow-mapSize={[1024, 1024]} // Reduced for performance
-          shadow-bias={-0.0001}
-          color={totalClicks > 1000 ? "#ffa500" : "#ffffff"}
-        />
-        <directionalLight 
-          position={[-10, -6, -5]} 
-          intensity={0.5} 
-          color={totalClicks > 500 ? "#9c61ff" : "#2d9da8"}
-        />
-        <pointLight 
-          position={[0, 3, 0]} 
-          intensity={1.5} 
-          color="#ffffff" 
-          distance={15}
-          decay={2}
-        />
-        {/* Add direct spotlight on the clickable object to ensure it's visible from the start */}
-        <spotLight
-          position={[0, 5, 5]}
-          angle={0.5}
-          penumbra={0.5}
-          intensity={2}
-          castShadow
-          shadow-bias={-0.0001}
-          target-position={[0, 0, 0]}
-          color="#ffffff"
-        />
-        <Stars 
-          radius={100} 
-          depth={60} 
-          count={totalClicks > 1000 ? 5000 : 3000} // Reduced for performance 
-          factor={totalClicks > 500 ? 7 : 5} 
-          saturation={0.8} 
-          fade 
-          speed={1.5} 
-        />
-        {totalClicks > 400 && (
-          <Sky
-            distance={450000}
-            sunPosition={sunPosition}
-            inclination={0.5}
-            azimuth={0.25}
-            mieCoefficient={0.001}
-            mieDirectionalG={0.8}
-            rayleigh={totalClicks > 1000 ? 1 : 2}
-            turbidity={10}
+        }}
+      >
+        <Suspense fallback={null}>
+          <PerformanceMonitor />
+          {/* Dynamic camera */}
+          <PerspectiveCamera makeDefault position={cameraPosition} fov={fovValue} />
+          <Background />
+          {/* Advanced lighting setup */}
+          <ambientLight intensity={0.8} />
+          <directionalLight 
+            ref={lightRef}
+            position={sunPosition} 
+            intensity={1.5} 
+            castShadow 
+            shadow-mapSize={[1024, 1024]} // Reduced for performance
+            shadow-bias={-0.0001}
+            color={totalClicks > 1000 ? "#ffa500" : "#ffffff"}
           />
-        )}
-        <Environment preset={getEnvironmentPreset()} />
-        <EnhancedSparkles totalClicks={totalClicks} />
-        <CosmicDust count={Math.min(1000, 500 + totalClicks / 10)} totalClicks={totalClicks} />
-        <OrbitalRings totalClicks={totalClicks} />
-        <ClickableObject />
-        <OrbitControls 
-          enableZoom={true} 
-          enablePan={false}
-          enableRotate={true}
-          minDistance={3} 
-          maxDistance={Math.min(20, 10 + totalClicks / 1000)}
-          rotateSpeed={0.5}
-          zoomSpeed={0.8}
-          autoRotate={totalClicks > 400} 
-          autoRotateSpeed={0.5 + Math.min(1.5, totalClicks / 2000)}
-        />
-      </Suspense>
-    </Canvas>
+          <directionalLight 
+            position={[-10, -6, -5]} 
+            intensity={0.5} 
+            color={totalClicks > 500 ? "#9c61ff" : "#2d9da8"}
+          />
+          <pointLight 
+            position={[0, 3, 0]} 
+            intensity={1.5} 
+            color="#ffffff" 
+            distance={15}
+            decay={2}
+          />
+          {/* Add direct spotlight on the clickable object to ensure it's visible from the start */}
+          <spotLight
+            position={[0, 5, 5]}
+            angle={0.5}
+            penumbra={0.5}
+            intensity={2}
+            castShadow
+            shadow-bias={-0.0001}
+            target-position={[0, 0, 0]}
+            color="#ffffff"
+          />
+          <Stars 
+            radius={100} 
+            depth={60} 
+            count={totalClicks > 1000 ? 5000 : 3000} // Reduced for performance 
+            factor={totalClicks > 500 ? 7 : 5} 
+            saturation={0.8} 
+            fade 
+            speed={1.5} 
+          />
+          {totalClicks > 400 && (
+            <Sky
+              distance={450000}
+              sunPosition={sunPosition}
+              inclination={0.5}
+              azimuth={0.25}
+              mieCoefficient={0.001}
+              mieDirectionalG={0.8}
+              rayleigh={totalClicks > 1000 ? 1 : 2}
+              turbidity={10}
+            />
+          )}
+          <Environment preset={getEnvironmentPreset()} />
+          <EnhancedSparkles totalClicks={totalClicks} />
+          <CosmicDust count={Math.min(1000, 500 + totalClicks / 10)} totalClicks={totalClicks} />
+          <OrbitalRings totalClicks={totalClicks} />
+          <ClickableObject />
+          <OrbitControls 
+            enableZoom={true} 
+            enablePan={false}
+            enableRotate={true}
+            minDistance={3} 
+            maxDistance={Math.min(20, 10 + totalClicks / 1000)}
+            rotateSpeed={0.5}
+            zoomSpeed={0.8}
+            autoRotate={totalClicks > 400} 
+            autoRotateSpeed={0.5 + Math.min(1.5, totalClicks / 2000)}
+          />
+        </Suspense>
+      </Canvas>
+    </ErrorBoundary>
   );
 }
