@@ -79,7 +79,7 @@ function App() {
           <StartScreen />
         ) : (
           <>
-            <div className="game-container" role="application" aria-label="3D Clicker Game Scene">
+            <div className="game-container" role="application">
               <GameScene />
             </div>
             <GameStats />
