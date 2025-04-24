@@ -365,10 +365,21 @@ export default function GameScene() {
         />
         <pointLight 
           position={[0, 3, 0]} 
-          intensity={0.8} 
-          color="#ff7a00" 
+          intensity={1.5} 
+          color="#ffffff" 
           distance={15}
           decay={2}
+        />
+        {/* Add direct spotlight on the clickable object to ensure it's visible from the start */}
+        <spotLight
+          position={[0, 5, 5]}
+          angle={0.5}
+          penumbra={0.5}
+          intensity={2}
+          castShadow
+          shadow-bias={-0.0001}
+          target-position={[0, 0, 0]}
+          color="#ffffff"
         />
         <Stars 
           radius={100} 

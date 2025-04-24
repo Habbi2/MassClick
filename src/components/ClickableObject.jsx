@@ -339,7 +339,7 @@ const ClickableObject = () => {
     if (geometryRef.current) {
       geometryRef.current.dispose();
     }
-    geometryRef = createSimpleGeometry(
+    geometryRef.current = createSimpleGeometry(
       evolutionData.complexity,
       evolutionData.arms
     );
