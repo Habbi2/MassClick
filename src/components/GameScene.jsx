@@ -14,7 +14,7 @@ import {
 } from '@react-three/drei';
 import * as THREE from 'three';
 import ClickableObject from './ClickableObject';
-import { setupSocketListeners, socket } from '../services/socketService';
+import { setupSocketListeners, socket, connectSocket } from '../services/socketService';
 import useGameStore from '../services/gameStore';
 
 // Background visual component with adaptive colors and patterns
@@ -157,6 +157,7 @@ export default function GameScene() {
   const lightRef = useRef();
   const frameRef = useRef(null);
   const [contextLost, setContextLost] = useState(false);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
 
   // Add WebGL context event listeners
   const handleContextEvents = useCallback(() => {
@@ -196,8 +197,32 @@ export default function GameScene() {
     };
   }, [handleContextEvents]);
 
-  // Setup socket listeners for multiplayer functionality
+  // Setup socket connection and listeners for multiplayer functionality
   useEffect(() => {
+    console.log("Setting up socket connection...");
+    
+    // Attempt to connect to the socket server
+    connectSocket()
+      .then(() => {
+        console.log("Socket connected successfully via connectSocket");
+        setConnected(true);
+      })
+      .catch(error => {
+        console.error("Socket connection failed:", error);
+        setConnected(false);
+        
+        // Try reconnecting a few times with increasing delays
+        if (connectionAttempts < 3) {
+          const retryDelay = (connectionAttempts + 1) * 3000;
+          console.log(`Will retry connection in ${retryDelay/1000} seconds...`);
+          
+          setTimeout(() => {
+            setConnectionAttempts(prev => prev + 1);
+            connectSocket().catch(() => console.log("Retry failed"));
+          }, retryDelay);
+        }
+      });
+    
     // Check initial connection state
     setConnected(socket.connected);
     
@@ -210,14 +235,22 @@ export default function GameScene() {
       },
       onConnect: () => {
         setConnected(true);
+        console.log("Socket connection established");
       },
       onDisconnect: () => {
         setConnected(false);
+        console.log("Socket connection lost");
       }
     });
 
-    return cleanup;
-  }, [updateGameState, setPlayerCount, setConnected]);
+    // Cleanup function to disconnect socket when component unmounts
+    return () => {
+      cleanup();
+      if (socket.connected) {
+        socket.disconnect();
+      }
+    };
+  }, [updateGameState, setPlayerCount, setConnected, connectionAttempts]);
 
   // Dynamic camera and environment adjustments with requestAnimationFrame
   // instead of continuous useEffect updates to be more performance-friendly
