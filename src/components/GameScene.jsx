@@ -14,7 +14,7 @@ import {
 } from '@react-three/drei';
 import * as THREE from 'three';
 import ClickableObject from './ClickableObject';
-import { setupSocketListeners, socket, connectSocket } from '../services/socketService';
+import { setupSocketListeners, socket, connectSocket, offlineMode } from '../services/socketService';
 import useGameStore from '../services/gameStore';
 
 // New Camera Controller component for enhanced camera behavior

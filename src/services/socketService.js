@@ -17,6 +17,9 @@ const SOCKET_URLS = {
 // Start with the primary URL
 let currentSocketUrl = SOCKET_URLS.primary;
 
+// Add offline mode flag
+export let offlineMode = false;
+
 // Create socket instance but don't connect immediately
 export const socket = io(currentSocketUrl, {
   reconnectionAttempts: 10,
@@ -26,8 +29,29 @@ export const socket = io(currentSocketUrl, {
   transports: ['websocket', 'polling'] // Try websocket first, fallback to polling
 });
 
+// Local game state for offline mode
+const offlineGameState = {
+  totalClicks: 0,
+  activePlayers: 1,
+  players: {
+    'local-player': {
+      id: 'local-player',
+      name: 'You',
+      clicks: 0
+    }
+  }
+};
+
 // Function to manually connect and handle connection issues
 export const connectSocket = () => {
+  // For itch.io deployed games, default to offline mode to ensure playability
+  if (window.location.hostname.includes('itch.io') || 
+      window.location.hostname.includes('itchio')) {
+    console.log('Running on itch.io, enabling offline mode automatically');
+    offlineMode = true;
+    return Promise.resolve({ offline: true });
+  }
+  
   console.log(`Attempting to connect to ${currentSocketUrl}...`);
   
   // Try to connect
@@ -63,6 +87,12 @@ export const connectSocket = () => {
               socket.io.opts.transports = ['polling']; // Force polling for HTTP
               socket.connect();
             }
+            // If all connection attempts fail, enable offline mode
+            else {
+              console.warn('All connection attempts failed, switching to offline mode');
+              offlineMode = true;
+              resolve({ offline: true });
+            }
           }
         }, 5000);
       }
@@ -71,6 +101,7 @@ export const connectSocket = () => {
     socket.on('connect', () => {
       clearTimeout(connectionTimeout);
       console.log('Socket connected successfully!');
+      offlineMode = false;
       resolve(socket);
     });
     
@@ -83,6 +114,33 @@ export const connectSocket = () => {
 
 // Socket event listeners
 export const setupSocketListeners = (callbacks) => {
+  // If in offline mode, set up local game state updates
+  if (offlineMode) {
+    console.log('Setting up offline mode event handlers');
+    
+    // Simulate initial connection
+    setTimeout(() => {
+      if (callbacks.onConnect) {
+        callbacks.onConnect();
+      }
+      
+      // Send initial game state
+      if (callbacks.onGameStateUpdate) {
+        callbacks.onGameStateUpdate(offlineGameState);
+      }
+      
+      // Send player count
+      if (callbacks.onPlayerCountUpdate) {
+        callbacks.onPlayerCountUpdate(1);
+      }
+    }, 500);
+    
+    return () => {
+      console.log('Cleaned up offline event handlers');
+    };
+  }
+
+  // Online mode - use socket listeners
   // Handle game state updates
   socket.on('gameState', (gameState) => {
     if (callbacks.onGameStateUpdate) {
@@ -137,6 +195,13 @@ export const setupSocketListeners = (callbacks) => {
 
 // Emit click event to server
 export const emitClick = () => {
+  if (offlineMode) {
+    // Update local game state for offline mode
+    offlineGameState.totalClicks++;
+    offlineGameState.players['local-player'].clicks++;
+    return;
+  }
+  
   if (socket.connected) {
     socket.emit('click');
   } else {
@@ -148,6 +213,12 @@ export const emitClick = () => {
 
 // Emit player name to server
 export const setPlayerName = (name) => {
+  if (offlineMode) {
+    // Update local player name for offline mode
+    offlineGameState.players['local-player'].name = name;
+    return;
+  }
+  
   if (socket.connected) {
     socket.emit('setPlayerName', name);
   } else {
