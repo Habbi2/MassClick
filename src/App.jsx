@@ -70,6 +70,7 @@ function App() {
         <Helmet ref={helmetRef}>
           <title>{helmetData.title}</title>
           <meta name="description" content={helmetData.description} />
+          <meta name="image" property="og:image" content="https://mass-click.vercel.app/game-preview.png" />
           <script type="application/ld+json">
             {JSON.stringify(generateLdJson())}
           </script>
