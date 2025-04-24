@@ -474,12 +474,8 @@ const ClickableObject = () => {
       >
         {/* Use a more visible geometry and material */}
         <sphereGeometry args={[1.5, 32, 32]} />
-        <animated.meshStandardMaterial 
-          roughness={0.2}
-          metalness={0.5}
+        <animated.meshBasicMaterial 
           color={color}
-          emissive={color}
-          emissiveIntensity={emissiveIntensity + 1.0}
           transparent={false}
           opacity={1.0}
         />
@@ -495,6 +491,8 @@ const ClickableObject = () => {
           color={evolutionData.color} 
           transparent={true}
           opacity={0.5}
+          emissive={evolutionData.color}
+          emissiveIntensity={1.5}
         />
       </mesh>
       
