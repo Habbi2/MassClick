@@ -1,10 +1,6 @@
 # Allow all crawlers
 User-agent: *
 Allow: /
-Allow: /game-preview.png
-Allow: /logo192.png
-Allow: /logo512.png
-Allow: /favicon.ico
 
 # Sitemap location
 Sitemap: https://mass-click.vercel.app/sitemap.xml
