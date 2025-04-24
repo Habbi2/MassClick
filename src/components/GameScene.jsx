@@ -32,7 +32,7 @@ function Background() {
     if (totalClicks > 5000) setBgColor('#2a0e1a');
   }, [totalClicks]);
 
-  return <color attach="background" args={[bgColor]} />
+  return <color attach="background" args={[bgColor]} />;
 }
 
 // Cosmic dust particle system
@@ -140,6 +140,24 @@ function EnhancedSparkles({ totalClicks }) {
       color={totalClicks > 1000 ? "#ff9d00" : "#8866ff"}
     />
   );
+}
+
+// Performance monitoring component
+function PerformanceMonitor() {
+  const { gl } = useThree();
+  
+  useEffect(() => {
+    // Lower resolution for weak devices
+    if (gl.capabilities.maxTextureSize < 8192) {
+      gl.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    }
+    
+    // Additional performance optimizations
+    gl.setClearColor(0x000000, 0);
+    gl.setSize(window.innerWidth, window.innerHeight);
+  }, [gl]);
+  
+  return null;
 }
 
 // Main game scene component
@@ -290,24 +308,6 @@ export default function GameScene() {
     };
   }, [totalClicks, contextLost]);
 
-  // Performance monitoring component
-  const PerformanceMonitor = () => {
-    const { gl } = useThree();
-    
-    useEffect(() => {
-      // Lower resolution for weak devices
-      if (gl.capabilities.maxTextureSize < 8192) {
-        gl.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-      }
-      
-      // Additional performance optimizations
-      gl.setClearColor(0x000000, 0);
-      gl.setSize(window.innerWidth, window.innerHeight);
-    }, [gl]);
-    
-    return null;
-  };
-
   // Get environment preset based on progression
   const getEnvironmentPreset = () => {
     if (totalClicks > 3000) return "night";
@@ -344,16 +344,11 @@ export default function GameScene() {
     >
       <Suspense fallback={null}>
         <PerformanceMonitor />
-        
         {/* Dynamic camera */}
         <PerspectiveCamera makeDefault position={cameraPosition} fov={fovValue} />
-        
-        {/* Rest of the component remains unchanged */}
         <Background />
-        
         {/* Advanced lighting setup */}
         <ambientLight intensity={0.8} />
-        
         <directionalLight 
           ref={lightRef}
           position={sunPosition} 
@@ -363,13 +358,11 @@ export default function GameScene() {
           shadow-bias={-0.0001}
           color={totalClicks > 1000 ? "#ffa500" : "#ffffff"}
         />
-        
         <directionalLight 
           position={[-10, -6, -5]} 
           intensity={0.5} 
           color={totalClicks > 500 ? "#9c61ff" : "#2d9da8"}
         />
-        
         <pointLight 
           position={[0, 3, 0]} 
           intensity={0.8} 
@@ -377,7 +370,6 @@ export default function GameScene() {
           distance={15}
           decay={2}
         />
-        
         <Stars 
           radius={100} 
           depth={60} 
@@ -387,7 +379,6 @@ export default function GameScene() {
           fade 
           speed={1.5} 
         />
-        
         {totalClicks > 400 && (
           <Sky
             distance={450000}
@@ -400,15 +391,11 @@ export default function GameScene() {
             turbidity={10}
           />
         )}
-        
         <Environment preset={getEnvironmentPreset()} />
-        
         <EnhancedSparkles totalClicks={totalClicks} />
-        <CosmicDust count={Math.min(1000, 500 + totalClicks / 10)} totalClicks={totalClicks} /> {/* Adaptive particle count */}
+        <CosmicDust count={Math.min(1000, 500 + totalClicks / 10)} totalClicks={totalClicks} />
         <OrbitalRings totalClicks={totalClicks} />
-        
         <ClickableObject />
-        
         <OrbitControls 
           enableZoom={true} 
           enablePan={false}
